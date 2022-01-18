@@ -130,7 +130,9 @@
     </header><!-- sect-heading -->
     
     <div class="row">
+        {% if products %}
         {% for product in products %}
+
         <div class="col-md-4">
             <figure class="card card-product-grid">
                 <div class="img-wrap"> 
@@ -151,6 +153,10 @@
             </figure>
         </div> <!-- col.// -->
         {% endfor %}
+        {% else %}
+        <div>
+            <h2>No result found. Please try again.</h2>
+        </div>
     </div> <!-- row end.// -->
     
     
