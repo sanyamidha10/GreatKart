@@ -97,7 +97,7 @@
                 </dl>
                 <dl class="dlist-align">
                   <dt>Tax:</dt>
-                  <dd class="text-right"> ₹{{tax}}</dd>
+                  <dd class="text-right">₹{{tax}}</dd>
                 </dl>
                 <dl class="dlist-align">
                   <dt>Grand Total:</dt>
@@ -109,26 +109,14 @@
                 </p>
 
 
-              
-                <form action="{% url 'payments' %}" method="POST">
-                  {% csrf_token %}
-                  <script src="https://checkout.razorpay.com/v1/checkout.js"
-                      data-key="rzp_test_r5V6FUrcTUtRpE" data-amount="{{ grand_total }}"
-                      data-currency="INR" data-order_id="{{ order_id }}"
-                      data-buttontext="Pay with Razorpay" data-name="GreatKart"
-                      data-description="Sit back and enjoy the comfort of home!"
-                      data-image="" data-prefill.name="{{ order.first_name }}"
-                      data-prefill.email="{{order.email }}" 
-                      data-theme.color="#F37254"></script>
-                      
-                </form>
+          <!--.1.Razorpay button -->
+          <button class="btn btn-primary" align="center" id="rzp-button1">Pay With Razorpay</button>
+					<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+          
+          
 
-
-
-                
-                
             </div> <!-- card-body.// -->
-            </div> <!-- card.// -->
+      </div> <!-- card.// -->
     
     </aside> <!-- col.// -->
     
@@ -138,6 +126,96 @@
     
     </div> <!-- container .//  -->
     </section>
+
+
+
+  <script>
+
+  function getCookie(name) {
+      let cookieValue = null;
+      if (document.cookie && document.cookie !== '') {
+          const cookies = document.cookie.split(';');
+          for (let i = 0; i < cookies.length; i++) {
+              const cookie = cookies[i].trim();
+              // Does this cookie string begin with the name we want?
+              if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                  cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                  break;
+              }
+          }
+      }
+      return cookieValue;
+  }
+ 
+  var amount = "{{ grand_total }}"
+	var url = "{% url 'payments' %}"
+	var csrftoken = getCookie('csrftoken');
+	var orderID = "{{order.order_number}}"
+	//var payment_method = 'Razorpay'
+	var redirect_url = "{% url 'order_complete' %}"
+
+ // ....4.razorpay integration for razorpay popup
+  var options = {
+		"key": "{{api_key_id}}", // Enter the Key ID generated from the Dashboard
+		"name": "GreatKart",
+		"description": "Online Shopping Platform",
+		"image": "{% static 'images/logo.png' %}",
+		"order_id": "{{order_id}}", //This is a sample Order ID. Pass the `id` obtained in the response of Step 1
+		"handler": function (response){
+      console.log(response)
+			var transID = response.razorpay_payment_id
+			var payment_method = 'Razorpay'
+			var status = 'Payment Success'
+			sendData(transID, payment_method, status);
+		},
+		"prefill": {
+			"name": "{{user.first_name}} {{user.last_name}}",
+			"email": "{{user.email}}",
+			"contact": "{{user.phone_number}}"
+		},
+		"theme": {
+			"color": "#3399cc"
+		}
+	};
+
+
+  var rzp1 = new Razorpay(options);
+	rzp1.on('payment.failed', function (response){
+		console.log(response)
+		console.log(response.error.code);
+		console.log(response.error.description);
+		console.log(response.error.source);
+		console.log(response.error.step);
+		console.log(response.error.reason);
+		console.log(response.error.metadata.order_id);
+		console.log(response.error.metadata.payment_id);
+	});
+
+	document.getElementById('rzp-button1').onclick = function(e){
+		rzp1.open();
+		e.preventDefault();
+	}
+ // Razorpay ends here
+  //Fetching data to send it to payments views.py
+  function sendData(transID, payment_method, status){
+		fetch(url, {
+			method : "POST",
+			headers: {
+				"Content-type": "application/json",
+				"X-CSRFToken": csrftoken,
+			},
+			body: JSON.stringify({
+				orderID: orderID,
+				transID: transID,
+				payment_method: payment_method,
+				status: status,
+			}),
+		})
+	
+	} 
+
+</script>
+
 
   
 {% endblock %}

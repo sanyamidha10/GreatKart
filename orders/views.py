@@ -1,18 +1,46 @@
 import datetime
-from urllib import request
 from django.shortcuts import redirect, render
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from carts.models import CartItem
 from .forms import OrderForm
 from .models import Order, Payment, OrderProduct
 import razorpay
 from django.views.decorators.csrf import csrf_exempt
+from greatkart.settings import RAZORPAY_API_KEY_ID, RAZORPAY_API_KEY_SECRET
+import json
 # Create your views here.
+
+# 2.setting the credentials of razorpay
+client = razorpay.Client(auth=(RAZORPAY_API_KEY_ID, RAZORPAY_API_KEY_SECRET))
+
+
+
+
+def payments(request):
+    body = json.loads(request.body)
+    order = Order.objects.get(user=request.user, is_ordered=False, order_number=body['orderID'])
+
+    # Store transaction details inside Payment model
+    payment = Payment(
+        user = request.user,
+        payment_id = body['transID'],
+        payment_method = body['payment_method'],
+        amount_paid = order.order_total,
+        status = body['status'],
+    )
+    payment.save()
+
+    order.payment = payment
+    order.is_ordered = True
+    order.save()
+
+    return render(request, 'orders/payments.html')
+
+
 
 
 def place_order(request, total=0, quantity=0):
     current_user = request.user
-    # print('úser=>>', current_user)
     # If cart item is less than or equal to 0, then redirect them to store page 
     cart_items = CartItem.objects.filter(user=current_user)
     cart_count = cart_items.count()
@@ -57,78 +85,42 @@ def place_order(request, total=0, quantity=0):
             order_number = current_date + str(data.id)
             data.order_number = order_number
             data.save()
+
             order = Order.objects.get(user=current_user, is_ordered=False, order_number=order_number)
-            request.session['order_number'] = order_number
+
+            #3. Razorpay Integration
+            # (order creation of razorpay)
+            DATA = {
+                "amount": grand_total*100,
+                "currency": "INR",
+                "payment_capture": 1,
+            }
+            payment_order = client.order.create(data=DATA)
+            print(payment_order)
+            payment_order_id = payment_order['id']
+
+
             context = {
             'order': order,
             'cart_items': cart_items,
             'total': total,
             'tax': tax,
-            'grand_total': data.order_total,
+            'grand_total': grand_total,
+            'api_key_id': RAZORPAY_API_KEY_ID,
+            'order_id': payment_order_id,
             }
-            order_amount = (order.order_total)*100
-            print(order_amount)
-            print(int(order_amount))
-            print(int(order_amount)*100)
-
-
+            
             return render(request, 'orders/payments.html', context)
 
     else:
         return redirect('checkout')
 
-@csrf_exempt
-def payments(request):
-    order_number = request.session.get('order_number')
-    
-    order = Order.objects.get(user=request.user, is_ordered=False, order_number=order_number)
-    
-            #razorpay
-    client = razorpay.Client(auth=('rzp_test_r5V6FUrcTUtRpE', 'unlmDI0iEqCD3j4rMQr5rsyk'))
-    order_amount = int(order.order_total)*100
-    response_payment = client.order.create(dict(
-    amount = order_amount,
-    currency = 'INR'
-        ))
-    
-    
 
-            # store the transaction details inside payment model
-    payment = Payment(
-        user = request.user,
-        payment_id = response_payment['id'],
-        payment_method = 'razorpay',
-        amount_paid = order.order_total,
-        status = 'COMPLETED',
-            )
-    payment.save()
-
-    order.payment = payment
-    order.is_ordered = True
-    order.save()
-
-            # Move the cart items to Order Product table
-    cart_items = CartItem.objects.filter(user=request.user)
-    for item in cart_items:
-        orderproduct = OrderProduct()
-        orderproduct.order_id = order.id
-        orderproduct.payment = payment
-        orderproduct.user_id = request.user.id
-        orderproduct.product_id = item.product_id
-        orderproduct.quantity = item.quantity
-        orderproduct.product_price = item.product.price
-        orderproduct.ordered = True
-        orderproduct.save()
-
-        cart_item = CartItem.objects.get(id=item.id)
-        product_variation = cart_item.variations.all()
-        orderproduct = OrderProduct.objects.get(id=orderproduct.id)
-        orderproduct.variations.set(product_variation)
-        orderproduct.save()
-    return HttpResponse('success')
     
         
-
+def order_complete(request):
+    
+    return HttpResponse('success')
 
 
 
