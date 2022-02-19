@@ -5,9 +5,13 @@ from carts.models import CartItem
 from .forms import OrderForm
 from .models import Order, Payment, OrderProduct
 import razorpay
+from store.models import Product
 from django.views.decorators.csrf import csrf_exempt
 from greatkart.settings import RAZORPAY_API_KEY_ID, RAZORPAY_API_KEY_SECRET
+from django.core.mail import EmailMessage
+from django.template.loader import render_to_string
 import json
+
 # Create your views here.
 
 # 2.setting the credentials of razorpay
@@ -34,7 +38,49 @@ def payments(request):
     order.is_ordered = True
     order.save()
 
-    return render(request, 'orders/payments.html')
+    cart_items = CartItem.objects.filter(user=request.user)
+
+    for item in cart_items:
+        orderproduct = OrderProduct()
+        orderproduct.order_id = order.id
+        orderproduct.payment = payment
+        orderproduct.user_id = request.user.id
+        orderproduct.product_id = item.product_id
+        orderproduct.quantity = item.quantity
+        orderproduct.product_price = item.product.price
+        orderproduct.ordered = True
+        orderproduct.save()
+
+        cart_item = CartItem.objects.get(id=item.id)
+        product_variation = cart_item.variations.all()
+        orderproduct = OrderProduct.objects.get(id=orderproduct.id)
+        orderproduct.variations.set(product_variation)
+        orderproduct.save()
+
+        # Reduce the quantity of the sold products
+        product = Product.objects.get(id=item.product_id)
+        product.stock -= item.quantity
+        product.save()
+
+    # Clear cart
+    CartItem.objects.filter(user=request.user).delete()
+
+    # Send order recieved email to customer
+    mail_subject = 'Thank you for your order!'
+    message = render_to_string('orders/order_recieved_email.html', {
+        'user': request.user,
+        'order': order,
+    })
+    to_email = request.user.email
+    send_email = EmailMessage(mail_subject, message, to=[to_email])
+    send_email.send()
+
+    # Send order number and transaction id back to sendData method via JsonResponse
+    data = {
+        'order_number': order.order_number,
+        'transID': payment.payment_id,
+    }
+    return JsonResponse(data)
 
 
 
@@ -119,8 +165,37 @@ def place_order(request, total=0, quantity=0):
     
         
 def order_complete(request):
-    
-    return HttpResponse('success')
+    order_number = request.GET.get('order_number')
+    transID = request.GET.get('payment_id')
+
+    try:
+        order = Order.objects.get(order_number=order_number, is_ordered=True)
+        ordered_products = OrderProduct.objects.filter(order_id=order.id)
+
+        subtotal = 0
+        individual_total = []
+        for i in ordered_products:
+            subtotal += i.product_price * i.quantity
+            item = OrderProduct.objects.get(id=i.id)
+            total = item.quantity * item.product_price
+            individual_total.append(total)
+
+        ord_prods = zip(ordered_products, individual_total)
+
+        payment = Payment.objects.get(payment_id=transID)
+
+        context = {
+            'order': order,
+            # 'ordered_products': ordered_products,
+            'order_number': order.order_number,
+            'transID': payment.payment_id,
+            'payment': payment,
+            'subtotal': subtotal,
+            'ord_prods': ord_prods,
+        }
+        return render(request, 'orders/order_complete.html', context)
+    except (Payment.DoesNotExist, Order.DoesNotExist):
+        return redirect('home')
 
 
 

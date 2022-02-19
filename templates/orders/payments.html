@@ -90,17 +90,17 @@
         <aside class="col-lg-4">
     
             <div class="card">
-            <div class="card-body">
+            <div class="card-body text-center">
                 <dl class="dlist-align">
-                  <dt>Total price:</dt>
+                  <dt class="text-left">Total price:</dt>
                   <dd class="text-right">₹{{total}}</dd>
                 </dl>
                 <dl class="dlist-align">
-                  <dt>Tax:</dt>
+                  <dt class="text-left">Tax:</dt>
                   <dd class="text-right">₹{{tax}}</dd>
                 </dl>
                 <dl class="dlist-align">
-                  <dt>Grand Total:</dt>
+                  <dt class="text-left">Grand Total:</dt>
                   <dd class="text-right text-dark b"><strong>₹{{grand_total}}</strong></dd>
                 </dl>
                 <hr>
@@ -211,6 +211,11 @@
 				status: status,
 			}),
 		})
+  
+  .then((response) => response.json())
+	.then((data) => {
+			window.location.href = redirect_url + '?order_number='+data.order_number+'&payment_id='+data.transID;
+		});
 	
 	} 
 
