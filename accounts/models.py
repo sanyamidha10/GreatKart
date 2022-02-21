@@ -62,6 +62,9 @@ class Account(AbstractBaseUser):
     REQUIRED_FIELDS = ['username', 'first_name', 'last_name'] #username_field i.e. email is default in this.
     #Password field is absent here in the code because its the built in  field.
     objects = MyAccountManager()
+
+    def full_name(self):
+        return f'{self.first_name} {self.last_name}'
     
     def __str__(self):
         return self.email
