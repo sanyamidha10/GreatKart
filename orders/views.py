@@ -142,7 +142,7 @@ def place_order(request, total=0, quantity=0):
                 "payment_capture": 1,
             }
             payment_order = client.order.create(data=DATA)
-            print(payment_order)
+            
             payment_order_id = payment_order['id']
 
 
