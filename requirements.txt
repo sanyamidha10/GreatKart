@@ -2,7 +2,7 @@ asgiref==3.4.1
 certifi==2021.10.8
 charset-normalizer==2.0.10
 Django==4.0.2
-django-admin-honeypot==1.1.0
+git+https://github.com/sanyamidha10/django-admin-honeypot@90ab42ba11153cae5a833258aea3870f53279ca4#egg=django-admin-honeypot
 django-admin-thumbnails==0.2.6
 django-ipware==4.0.2
 django-session-timeout==0.1.0
