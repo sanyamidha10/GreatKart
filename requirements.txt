@@ -2,7 +2,6 @@ asgiref==3.4.1
 certifi==2021.10.8
 charset-normalizer==2.0.10
 Django==4.0.2
-
 django-admin-thumbnails==0.2.6
 django-ipware==4.0.2
 django-session-timeout==0.1.0
